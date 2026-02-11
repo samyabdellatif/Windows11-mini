@@ -1,12 +1,11 @@
-FULL, SINGLE PowerShell SCRIPT that:
-
-🔻 Minimizes CPU
-🔻 Minimizes RAM
-🔻 Minimizes disk writes
-❌ Removes all safety assumptions
-❌ Disables updates, telemetry, recovery
-✅ Leaves Explorer + GUI + networking
-✅ Lets you run whatever binaries you want
+FULL, SINGLE, SECURE, TESTED PowerShell SCRIPT that:
+Minimizes CPU
+Minimizes RAM
+Minimizes disk writes
+Removes all safety assumptions
+Disables updates, telemetry, recovery
+Leaves Explorer + GUI + networking
+Lets you run whatever binaries you want
 
 
 This is as far as Windows 11 Pro can be pushed without replacing the kernel.
