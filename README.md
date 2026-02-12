@@ -123,6 +123,13 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 .\windows11-minimizer.ps1 -Verbose
 ```
 
+## Debload a windows 11 USB installation drive
+- after preparing the bootable usb using rufus or windows media creation tool.
+- use the following scrip (replace drive letter with your USB drive letter)
+```powershell
+.\windows11-installation-minimizer.ps1 -DriveLetter D:
+```
+
 ## Warnings and Disclaimers
 
 - This script intentionally removes:
