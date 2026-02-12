@@ -33,7 +33,7 @@ function Disable-ServiceSafe {
     }
     catch {
         $Report.ServicesFailed += "$Name :: $($_.Exception.Message)"
-        Write-Host "[!] Failed to disable service: $Name" -ForegroundColor Red
+        Write-Host "[x] Failed to disable service: $Name" -ForegroundColor Red
     }
 }
 
@@ -53,7 +53,7 @@ function Set-RegistrySafe {
     }
     catch {
         $Report.RegistryFailed += "$Path\$Name :: $($_.Exception.Message)"
-        Write-Host "[!] Registry failed: $Path\$Name" -ForegroundColor Red
+        Write-Host "[x] Registry failed: $Path\$Name" -ForegroundColor Red
     }
 }
 
@@ -67,7 +67,7 @@ function Run-CommandSafe {
     }
     catch {
         $Report.CommandsFailed += "$Command :: $($_.Exception.Message)"
-        Write-Host "[!] Command failed: $Command" -ForegroundColor Red
+        Write-Host "[x] Command failed: $Command" -ForegroundColor Red
     }
 }
 
