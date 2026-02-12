@@ -12,20 +12,6 @@ This configuration is intended for lab machines, test benches, reverse engineeri
 
 ---
 
-## What This Script Does
-
-After execution and reboot, Windows is reduced to:
-
-- Explorer-based desktop
-- Basic GUI and file dialogs
-- Networking
-- CMD and PowerShell
-- Ability to run arbitrary executables
-
-Everything else is disabled or minimized.
-
----
-
 ## Major Changes Applied
 
 ### System Services
@@ -66,7 +52,7 @@ Everything else is disabled or minimized.
 - AppX and UWP apps
 - Meaningful system logs
 
-If something breaks, Windows will not fix itself.
+## I have tested it on several windows 11 installations and proven working without breaking anything. but use on your own risk, If something breaks, Windows will not fix itself.  no guarantees.
 
 ---
 
@@ -74,30 +60,12 @@ If something breaks, Windows will not fix itself.
 
 Typical values after reboot on Windows 11 Pro:
 
-- RAM usage approximately 1 to 2 GB (that does not count third party apps and browsers)
+- RAM usage approximately 1 to 2 GB (windows only not including other apps you installed)
 - Service count approximately 55 to 65
 - Disk writes near zero when idle
 - CPU usage flat at idle
 
-Actual results depend on hardware and drivers.
-
----
-
-## Intended Use Cases
-
-This configuration is suitable for:
-
-- Malware analysis sandboxes
-- Reverse engineering labs
-- Game or engine test rigs
-- Continuous integration runners
-- Disposable virtual machines
-- Embedded HMI style deployments
-- Research environments
-
-It is not suitable for daily use, production systems, or machines with important data.
-
----
+Actual results depend on hardware, drivers and other software you have installed.
 
 ## Requirements
 
@@ -114,7 +82,7 @@ It is not suitable for daily use, production systems, or machines with important
 2. Open an elevated PowerShell session
 3. Allow script execution for the session
 4. Run the script with verbose output
-5. Reboot
+6. Reboot
 
 Example:
 
@@ -129,6 +97,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\windows11-installation-minimizer.ps1 -DriveLetter D:
 ```
+## It may take a while to stop some services. keep waiting it will eventually stop and gets disabled.
 
 ## Warnings and Disclaimers
 
@@ -148,12 +117,5 @@ powershell -ExecutionPolicy Bypass -File .\windows11-installation-minimizer.ps1 
 ## Do not expose the system to untrusted networks.
 ## Do not expect Microsoft support.
 
-- You are responsible for the consequences.
-
-## Project Philosophy
-
-- Windows is treated as:
-
-   . A GUI bootloader for arbitrary processes.
 
    . This project pushes Windows 11 Pro as far as possible in that direction without replacing the kernel.
