@@ -74,7 +74,7 @@ If something breaks, Windows will not fix itself.
 
 Typical values after reboot on Windows 11 Pro:
 
-- RAM usage approximately 0.9 to 1.2 GB
+- RAM usage approximately 1 to 2 GB (that does not count third party apps and browsers)
 - Service count approximately 55 to 65
 - Disk writes near zero when idle
 - CPU usage flat at idle
