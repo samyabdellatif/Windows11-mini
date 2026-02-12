@@ -123,3 +123,32 @@ Example:
 ```powershell
 Set-ExecutionPolicy Bypass -Scope Process -Force
 .\windows11-minimizer.ps1 -Verbose
+```
+
+## Warnings and Disclaimers
+
+- This script intentionally removes:
+
+- Security protections
+
+- Update mechanisms
+
+- Recovery capabilities
+
+- Stability guarantees
+
+- Treat the resulting system as disposable.
+
+## Do not run this on machines with valuable data.
+## Do not expose the system to untrusted networks.
+## Do not expect Microsoft support.
+
+- You are responsible for the consequences.
+
+## Project Philosophy
+
+- Windows is treated as:
+
+   . A GUI bootloader for arbitrary processes.
+
+   . This project pushes Windows 11 Pro as far as possible in that direction without replacing the kernel.
