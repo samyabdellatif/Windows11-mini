@@ -8,9 +8,7 @@ The goal is to make Windows behave like a disposable graphical process launcher 
 
 This configuration is intended for lab machines, test benches, reverse engineering environments, CI runners, fuzzing stations, and similar controlled scenarios.
 
-This is not a hardening script.  
-This is not a performance tweak script.  
-This intentionally removes safety, durability, and servicing guarantees.
+## The soul purpose is to let windows consume the least required resources (RAM, DISK read/writes, Processor) to allow more responsivness for anything else you run.
 
 ---
 
