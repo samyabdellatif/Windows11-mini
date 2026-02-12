@@ -1,179 +1,179 @@
 
 # =====================================================
-# Windows 11 Ultra-Minimal Runtime Workstation
+# Windows 11 Ultra-Minimal Runtime Workstation Script
+# Purpose: Empty GUI host for arbitrary runtime apps
 # =====================================================
 
-$Report = @{
-    ServicesDisabled = @()
-    ServicesNotFound = @()
-    ServicesFailed   = @()
-    RegistrySet      = @()
-    RegistryFailed   = @()
-    CommandsRun      = @()
-    CommandsFailed   = @()
-}
-
-function Disable-ServiceSafe {
-    param ([string]$Name)
-
-    try {
-        $svc = Get-Service -Name $Name -ErrorAction Stop
-
-        if ($svc.Status -ne "Stopped") {
-            Stop-Service $Name -Force -ErrorAction Stop
-        }
-
-        Set-Service $Name -StartupType Disabled -ErrorAction Stop
-        $Report.ServicesDisabled += $Name
-        Write-Host "[✓] Service disabled: $Name" -ForegroundColor Green
-    }
-    catch [System.InvalidOperationException] {
-        $Report.ServicesNotFound += $Name
-        Write-Host "[-] Service not found: $Name" -ForegroundColor DarkGray
-    }
-    catch {
-        $Report.ServicesFailed += "$Name :: $($_.Exception.Message)"
-        Write-Host "[x] Failed to disable service: $Name" -ForegroundColor Red
-    }
-}
-
-function Set-RegistrySafe {
-    param (
-        [string]$Path,
-        [string]$Name,
-        [object]$Value,
-        [Microsoft.Win32.RegistryValueKind]$Type
-    )
-
-    try {
-        New-Item -Path $Path -Force -ErrorAction Stop | Out-Null
-        Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -ErrorAction Stop
-        $Report.RegistrySet += "$Path\$Name"
-        Write-Host "[✓] Registry set: $Path\$Name" -ForegroundColor Green
-    }
-    catch {
-        $Report.RegistryFailed += "$Path\$Name :: $($_.Exception.Message)"
-        Write-Host "[x] Registry failed: $Path\$Name" -ForegroundColor Red
-    }
-}
-
-function Run-CommandSafe {
-    param ([string]$Command)
-
-    try {
-        cmd.exe /c $Command | Out-Null
-        $Report.CommandsRun += $Command
-        Write-Host "[✓] Command executed: $Command" -ForegroundColor Green
-    }
-    catch {
-        $Report.CommandsFailed += "$Command :: $($_.Exception.Message)"
-        Write-Host "[x] Command failed: $Command" -ForegroundColor Red
-    }
-}
-
-Write-Host "`nApplying EMPTY GUI RUNTIME profile (AUDITED)..." -ForegroundColor Cyan
+Write-Host "Applying EMPTY GUI RUNTIME profile..." -ForegroundColor Cyan
 
 # -----------------------------------------------------
-# 1. Updates / Servicing
+# 1. Kill updates, servicing, delivery, maintenance
 # -----------------------------------------------------
-$updateServices = "wuauserv","UsoSvc","DoSvc","WaaSMedicSvc"
-$updateServices | ForEach-Object { Disable-ServiceSafe $_ }
+$updateServices = @(
+    "wuauserv",
+    "UsoSvc",
+    "DoSvc",
+    "WaaSMedicSvc"
+)
 
-Run-CommandSafe 'schtasks /Change /TN "\Microsoft\Windows\TaskScheduler\Maintenance Configurator" /Disable'
-Run-CommandSafe 'schtasks /Change /TN "\Microsoft\Windows\TaskScheduler\Regular Maintenance" /Disable'
-
-# -----------------------------------------------------
-# 2. Telemetry / Diagnostics
-# -----------------------------------------------------
-"DiagTrack","dmwappushservice","WerSvc" | ForEach-Object {
-    Disable-ServiceSafe $_
+foreach ($svc in $updateServices) {
+    Stop-Service $svc -Force -ErrorAction SilentlyContinue
+    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
 }
 
-Set-RegistrySafe `
+# Disable maintenance tasks
+schtasks /Change /TN "\Microsoft\Windows\TaskScheduler\Maintenance Configurator" /Disable 2>$null
+schtasks /Change /TN "\Microsoft\Windows\TaskScheduler\Regular Maintenance" /Disable 2>$null
+
+# -----------------------------------------------------
+# 2. Kill telemetry, diagnostics, feedback
+# -----------------------------------------------------
+$telemetryServices = @(
+    "DiagTrack",
+    "dmwappushservice",
+    "WerSvc"
+)
+
+foreach ($svc in $telemetryServices) {
+    Stop-Service $svc -Force -ErrorAction SilentlyContinue
+    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+}
+
+New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Force | Out-Null
+Set-ItemProperty `
  "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" `
- "AllowTelemetry" 0 DWord
+ -Name AllowTelemetry -Type DWord -Value 0
 
 # -----------------------------------------------------
-# 3. Defender (hard off – lab mode)
+# 3. Kill Defender COMPLETELY (runtime lab mode)
 # -----------------------------------------------------
-"WinDefend","WdNisSvc","Sense" | ForEach-Object {
-    Disable-ServiceSafe $_
+$defenderServices = @(
+    "WinDefend",
+    "WdNisSvc",
+    "Sense"
+)
+
+foreach ($svc in $defenderServices) {
+    Stop-Service $svc -Force -ErrorAction SilentlyContinue
+    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
 }
 
-Set-RegistrySafe `
+# Disable Defender features via registry (hard off)
+New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Force | Out-Null
+Set-ItemProperty `
  "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" `
- "DisableAntiSpyware" 1 DWord
+ -Name DisableAntiSpyware -Type DWord -Value 1
 
 # -----------------------------------------------------
-# 4. Search / Prefetch / Superfetch
+# 4. Kill Search, indexing, prefetch, superfetch
 # -----------------------------------------------------
-"WSearch","SysMain" | ForEach-Object {
-    Disable-ServiceSafe $_
+$perfServices = @(
+    "WSearch",
+    "SysMain"
+)
+
+foreach ($svc in $perfServices) {
+    Stop-Service $svc -Force -ErrorAction SilentlyContinue
+    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
 }
 
-Set-RegistrySafe `
+Set-ItemProperty `
  "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" `
- "EnablePrefetcher" 0 DWord
+ -Name EnablePrefetcher -Type DWord -Value 0
 
 # -----------------------------------------------------
-# 5. Disk write minimization
+# 5. Reduce disk writes HARD
 # -----------------------------------------------------
-Run-CommandSafe "powercfg /h off"
-Run-CommandSafe "fsutil behavior set disablelastaccess 1"
-Run-CommandSafe "wmic computersystem set AutomaticManagedPagefile=False"
-Run-CommandSafe 'wmic pagefileset where name="C:\\pagefile.sys" set InitialSize=512,MaximumSize=512'
-Run-CommandSafe "wevtutil sl Application /ms:524288"
-Run-CommandSafe "wevtutil sl System /ms:524288"
-Run-CommandSafe "wevtutil sl Security /ms:524288"
+
+# Disable hibernation
+powercfg /h off
+
+# Disable last access time updates
+fsutil behavior set disablelastaccess 1
+
+# Reduce event log sizes (do not disable)
+wevtutil sl Application /ms:524288
+wevtutil sl System /ms:524288
+wevtutil sl Security /ms:524288
 
 # -----------------------------------------------------
-# 6. Cloud / Sync junk
+# 6. Kill consumer / cloud / sync services
 # -----------------------------------------------------
-"OneSyncSvc","UserDataSvc","UnistoreSvc","CDPUserSvc","MapsBroker","RetailDemo" |
-    ForEach-Object { Disable-ServiceSafe $_ }
+$cloudServices = @(
+    "OneSyncSvc",
+    "UserDataSvc",
+    "UnistoreSvc",
+    "CDPUserSvc",
+    "MapsBroker",
+    "RetailDemo"
+)
+
+foreach ($svc in $cloudServices) {
+    Stop-Service $svc -Force -ErrorAction SilentlyContinue
+    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+}
 
 # -----------------------------------------------------
-# 7. Devices
+# 7. Kill devices you don't care about
 # -----------------------------------------------------
-"Spooler","Fax","BluetoothUserService","bthserv","WiaRpc" |
-    ForEach-Object { Disable-ServiceSafe $_ }
+$deviceServices = @(
+    "Spooler",
+    "Fax",
+    "BluetoothUserService",
+    "bthserv",
+    "WiaRpc"
+)
+
+foreach ($svc in $deviceServices) {
+    Stop-Service $svc -Force -ErrorAction SilentlyContinue
+    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+}
 
 # -----------------------------------------------------
-# 8. UWP runtime / background apps
+# 8. Kill background apps & UWP runtime
 # -----------------------------------------------------
-"AppXSvc","ClipSVC","LicenseManager" |
-    ForEach-Object { Disable-ServiceSafe $_ }
+$uwpServices = @(
+    "AppXSvc",
+    "ClipSVC",
+    "LicenseManager"
+)
 
-Set-RegistrySafe `
+foreach ($svc in $uwpServices) {
+    Stop-Service $svc -Force -ErrorAction SilentlyContinue
+    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+}
+
+New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Force | Out-Null
+Set-ItemProperty `
  "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" `
- "DisableWindowsConsumerFeatures" 1 DWord
+ -Name DisableWindowsConsumerFeatures -Type DWord -Value 1
 
-Set-RegistrySafe `
+# -----------------------------------------------------
+# 9. Disable background app execution
+# -----------------------------------------------------
+New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Force | Out-Null
+Set-ItemProperty `
  "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" `
- "GlobalUserDisabled" 1 DWord
+ -Name GlobalUserDisabled -Type DWord -Value 1
 
 # -----------------------------------------------------
-# 9. UI overhead
+# 10. Strip UI overhead
 # -----------------------------------------------------
-Set-RegistrySafe `
+Set-ItemProperty `
  "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" `
- "VisualFXSetting" 2 DWord
+ -Name VisualFXSetting -Type DWord -Value 2
 
-Set-RegistrySafe `
+# Disable widgets
+New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" -Force | Out-Null
+Set-ItemProperty `
  "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" `
- "AllowNewsAndInterests" 0 DWord
+ -Name AllowNewsAndInterests -Type DWord -Value 0
 
 # -----------------------------------------------------
-# SUMMARY
+# DONE
 # -----------------------------------------------------
-Write-Host "`n================ SUMMARY ================" -ForegroundColor Cyan
-Write-Host "Services disabled : $($Report.ServicesDisabled.Count)"
-Write-Host "Services not found: $($Report.ServicesNotFound.Count)"
-Write-Host "Services failed   : $($Report.ServicesFailed.Count)"
-Write-Host "Registry set      : $($Report.RegistrySet.Count)"
-Write-Host "Registry failed   : $($Report.RegistryFailed.Count)"
-Write-Host "Commands executed : $($Report.CommandsRun.Count)"
-Write-Host "Commands failed   : $($Report.CommandsFailed.Count)"
-Write-Host "========================================" -ForegroundColor Cyan
-
-Write-Host "`nREBOOT REQUIRED" -ForegroundColor Green
+Write-Host ""
+Write-Host "=============================================" -ForegroundColor Green
+Write-Host "EMPTY GUI RUNTIME PROFILE APPLIED" -ForegroundColor Green
+Write-Host "Reboot REQUIRED" -ForegroundColor Green
+Write-Host "=============================================" -ForegroundColor Green
