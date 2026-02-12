@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project provides a PowerShell script that aggressively minimizes Windows 11 Pro into a lightweight GUI runtime host.
+This PowerShell script aggressively minimizes Windows 11/10 Pro into a very lightweight system.
 
 The goal is to make Windows behave like a disposable graphical process launcher rather than a general-purpose operating system.
 
