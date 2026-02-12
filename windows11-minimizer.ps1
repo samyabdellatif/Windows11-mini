@@ -1,179 +1,168 @@
-
-# =====================================================
-# Windows 11 Ultra-Minimal Runtime Workstation Script
-# Purpose: Empty GUI host for arbitrary runtime apps
-# =====================================================
-
-Write-Host "Applying EMPTY GUI RUNTIME profile..." -ForegroundColor Cyan
-
-# -----------------------------------------------------
-# 1. Kill updates, servicing, delivery, maintenance
-# -----------------------------------------------------
-$updateServices = @(
-    "wuauserv",
-    "UsoSvc",
-    "DoSvc",
-    "WaaSMedicSvc"
+param (
+    [switch]$VerboseMode
 )
 
-foreach ($svc in $updateServices) {
-    Stop-Service $svc -Force -ErrorAction SilentlyContinue
-    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+if ($VerboseMode) {
+    $VerbosePreference = "Continue"
 }
 
-# Disable maintenance tasks
-schtasks /Change /TN "\Microsoft\Windows\TaskScheduler\Maintenance Configurator" /Disable 2>$null
-schtasks /Change /TN "\Microsoft\Windows\TaskScheduler\Regular Maintenance" /Disable 2>$null
+Write-Host "Starting Empty GUI Runtime configuration"
 
-# -----------------------------------------------------
-# 2. Kill telemetry, diagnostics, feedback
-# -----------------------------------------------------
-$telemetryServices = @(
-    "DiagTrack",
-    "dmwappushservice",
-    "WerSvc"
-)
-
-foreach ($svc in $telemetryServices) {
-    Stop-Service $svc -Force -ErrorAction SilentlyContinue
-    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+$Summary = [ordered]@{
+    ServicesStopped   = 0
+    ServicesDisabled  = 0
+    RegistryWrites    = 0
+    TasksDisabled     = 0
+    Errors            = 0
 }
 
-New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Force | Out-Null
-Set-ItemProperty `
- "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" `
- -Name AllowTelemetry -Type DWord -Value 0
+function Safe-StopService {
+    param ($Name)
 
-# -----------------------------------------------------
-# 3. Kill Defender COMPLETELY (runtime lab mode)
-# -----------------------------------------------------
-$defenderServices = @(
-    "WinDefend",
-    "WdNisSvc",
-    "Sense"
-)
-
-foreach ($svc in $defenderServices) {
-    Stop-Service $svc -Force -ErrorAction SilentlyContinue
-    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+    try {
+        $svc = Get-Service -Name $Name -ErrorAction Stop
+        if ($svc.Status -ne "Stopped") {
+            Stop-Service $Name -Force -ErrorAction Stop
+            Write-Verbose "Service stopped: $Name"
+            $Summary.ServicesStopped++
+        }
+        Set-Service $Name -StartupType Disabled -ErrorAction Stop
+        Write-Verbose "Service disabled: $Name"
+        $Summary.ServicesDisabled++
+    }
+    catch {
+        Write-Warning "Failed to modify service: $Name"
+        $Summary.Errors++
+    }
 }
 
-# Disable Defender features via registry (hard off)
-New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" -Force | Out-Null
-Set-ItemProperty `
- "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" `
- -Name DisableAntiSpyware -Type DWord -Value 1
+function Safe-RegSet {
+    param ($Path, $Name, $Type, $Value)
 
-# -----------------------------------------------------
-# 4. Kill Search, indexing, prefetch, superfetch
-# -----------------------------------------------------
-$perfServices = @(
-    "WSearch",
-    "SysMain"
-)
-
-foreach ($svc in $perfServices) {
-    Stop-Service $svc -Force -ErrorAction SilentlyContinue
-    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+    try {
+        if (-not (Test-Path $Path)) {
+            New-Item $Path -Force | Out-Null
+        }
+        Set-ItemProperty -Path $Path -Name $Name -Type $Type -Value $Value
+        Write-Verbose "Registry set: $Path $Name = $Value"
+        $Summary.RegistryWrites++
+    }
+    catch {
+        Write-Warning "Failed registry write: $Path $Name"
+        $Summary.Errors++
+    }
 }
 
-Set-ItemProperty `
- "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" `
- -Name EnablePrefetcher -Type DWord -Value 0
+function Safe-DisableTask {
+    param ($TaskName)
 
-# -----------------------------------------------------
-# 5. Reduce disk writes HARD
-# -----------------------------------------------------
-
-# Disable hibernation
-powercfg /h off
-
-# Disable last access time updates
-fsutil behavior set disablelastaccess 1
-
-# Reduce event log sizes (do not disable)
-wevtutil sl Application /ms:524288
-wevtutil sl System /ms:524288
-wevtutil sl Security /ms:524288
-
-# -----------------------------------------------------
-# 6. Kill consumer / cloud / sync services
-# -----------------------------------------------------
-$cloudServices = @(
-    "OneSyncSvc",
-    "UserDataSvc",
-    "UnistoreSvc",
-    "CDPUserSvc",
-    "MapsBroker",
-    "RetailDemo"
-)
-
-foreach ($svc in $cloudServices) {
-    Stop-Service $svc -Force -ErrorAction SilentlyContinue
-    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+    try {
+        schtasks /Change /TN $TaskName /Disable | Out-Null
+        Write-Verbose "Task disabled: $TaskName"
+        $Summary.TasksDisabled++
+    }
+    catch {
+        Write-Warning "Failed to disable task: $TaskName"
+        $Summary.Errors++
+    }
 }
 
-# -----------------------------------------------------
-# 7. Kill devices you don't care about
-# -----------------------------------------------------
-$deviceServices = @(
-    "Spooler",
-    "Fax",
-    "BluetoothUserService",
-    "bthserv",
-    "WiaRpc"
-)
-
-foreach ($svc in $deviceServices) {
-    Stop-Service $svc -Force -ErrorAction SilentlyContinue
-    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+Write-Host "Disabling update and servicing services"
+"wuauserv","UsoSvc","DoSvc","WaaSMedicSvc" | ForEach-Object {
+    Safe-StopService $_
 }
 
-# -----------------------------------------------------
-# 8. Kill background apps & UWP runtime
-# -----------------------------------------------------
-$uwpServices = @(
-    "AppXSvc",
-    "ClipSVC",
-    "LicenseManager"
-)
+Safe-DisableTask "\Microsoft\Windows\TaskScheduler\Maintenance Configurator"
+Safe-DisableTask "\Microsoft\Windows\TaskScheduler\Regular Maintenance"
 
-foreach ($svc in $uwpServices) {
-    Stop-Service $svc -Force -ErrorAction SilentlyContinue
-    Set-Service  $svc -StartupType Disabled -ErrorAction SilentlyContinue
+Write-Host "Disabling telemetry services"
+"DiagTrack","dmwappushservice","WerSvc" | ForEach-Object {
+    Safe-StopService $_
 }
 
-New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" -Force | Out-Null
-Set-ItemProperty `
- "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" `
- -Name DisableWindowsConsumerFeatures -Type DWord -Value 1
+Safe-RegSet "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" `
+            "AllowTelemetry" DWord 0
 
-# -----------------------------------------------------
-# 9. Disable background app execution
-# -----------------------------------------------------
-New-Item "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Force | Out-Null
-Set-ItemProperty `
- "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" `
- -Name GlobalUserDisabled -Type DWord -Value 1
+Write-Host "Disabling Defender services"
+"WinDefend","WdNisSvc","Sense" | ForEach-Object {
+    Safe-StopService $_
+}
 
-# -----------------------------------------------------
-# 10. Strip UI overhead
-# -----------------------------------------------------
-Set-ItemProperty `
- "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" `
- -Name VisualFXSetting -Type DWord -Value 2
+Safe-RegSet "HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender" `
+            "DisableAntiSpyware" DWord 1
 
-# Disable widgets
-New-Item "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" -Force | Out-Null
-Set-ItemProperty `
- "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" `
- -Name AllowNewsAndInterests -Type DWord -Value 0
+Write-Host "Disabling search and memory optimizers"
+"WSearch","SysMain" | ForEach-Object {
+    Safe-StopService $_
+}
 
-# -----------------------------------------------------
-# DONE
-# -----------------------------------------------------
+Safe-RegSet "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\PrefetchParameters" `
+            "EnablePrefetcher" DWord 0
+
+Write-Host "Reducing disk activity"
+
+try {
+    powercfg /h off | Out-Null
+    Write-Verbose "Hibernation disabled"
+}
+catch {
+    Write-Warning "Failed to disable hibernation"
+    $Summary.Errors++
+}
+
+try {
+    fsutil behavior set disablelastaccess 1 | Out-Null
+    Write-Verbose "Last access updates disabled"
+}
+catch {
+    Write-Warning "Failed to disable last access updates"
+    $Summary.Errors++
+}
+
+try {
+    wevtutil sl Application /ms:524288
+    wevtutil sl System /ms:524288
+    wevtutil sl Security /ms:524288
+    Write-Verbose "Event log sizes reduced"
+}
+catch {
+    Write-Warning "Failed to resize event logs"
+    $Summary.Errors++
+}
+
+Write-Host "Disabling cloud and consumer services"
+"OneSyncSvc","UserDataSvc","UnistoreSvc","CDPUserSvc","MapsBroker","RetailDemo" | ForEach-Object {
+    Safe-StopService $_
+}
+
+Write-Host "Disabling unused device services"
+"Spooler","Fax","BluetoothUserService","bthserv","WiaRpc" | ForEach-Object {
+    Safe-StopService $_
+}
+
+Write-Host "Disabling UWP runtime services"
+"AppXSvc","ClipSVC","LicenseManager" | ForEach-Object {
+    Safe-StopService $_
+}
+
+Safe-RegSet "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" `
+            "DisableWindowsConsumerFeatures" DWord 1
+
+Safe-RegSet "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" `
+            "GlobalUserDisabled" DWord 1
+
+Safe-RegSet "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" `
+            "VisualFXSetting" DWord 2
+
+Safe-RegSet "HKLM:\SOFTWARE\Policies\Microsoft\Dsh" `
+            "AllowNewsAndInterests" DWord 0
+
 Write-Host ""
-Write-Host "=============================================" -ForegroundColor Green
-Write-Host "EMPTY GUI RUNTIME PROFILE APPLIED" -ForegroundColor Green
-Write-Host "Reboot REQUIRED" -ForegroundColor Green
-Write-Host "=============================================" -ForegroundColor Green
+Write-Host "Execution summary"
+Write-Host "Services stopped  : $($Summary.ServicesStopped)"
+Write-Host "Services disabled : $($Summary.ServicesDisabled)"
+Write-Host "Registry writes   : $($Summary.RegistryWrites)"
+Write-Host "Tasks disabled    : $($Summary.TasksDisabled)"
+Write-Host "Errors            : $($Summary.Errors)"
+Write-Host ""
+Write-Host "Reboot is required for all changes to take effect"
