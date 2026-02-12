@@ -117,5 +117,3 @@ powershell -ExecutionPolicy Bypass -File .\windows11-installation-minimizer.ps1 
 ## Do not expose the system to untrusted networks.
 ## Do not expect Microsoft support.
 
-
-   . This project pushes Windows 11 Pro as far as possible in that direction without replacing the kernel.
