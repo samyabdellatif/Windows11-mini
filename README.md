@@ -1,79 +1,125 @@
-FULL, SINGLE, SECURE, TESTED PowerShell SCRIPT that:
+# Windows 11 Empty GUI Runtime
 
-- Minimizes CPU
-- Minimizes RAM
-- Minimizes disk writes
-- Removes all safety assumptions
-- Disables updates, telemetry, recovery
-- Leaves Explorer + GUI + networking
-- Lets you run whatever binaries you want
+## Overview
 
+This project provides a PowerShell script that aggressively minimizes Windows 11 Pro into a lightweight GUI runtime host.
 
-This is as far as Windows 11 Pro can be pushed without replacing the kernel.
+The goal is to make Windows behave like a disposable graphical process launcher rather than a general-purpose operating system.
 
+This configuration is intended for lab machines, test benches, reverse engineering environments, CI runners, fuzzing stations, and similar controlled scenarios.
 
-HOW TO USE:
+This is not a hardening script.  
+This is not a performance tweak script.  
+This intentionally removes safety, durability, and servicing guarantees.
 
-- DOWNLOAD THE SCRIPT FILE 
-- RUN POWERSHELL AS ADMIN
-- change dir to file dir (CD <your download dir>) (or adjust the code below with file full path)
-  
-powershell.exe -ExecutionPolicy Bypass -File windows11-minimizer.ps1 
+---
 
-⸻
+## What This Script Does
 
-⚠️ VERY IMPORTANT
+After execution and reboot, Windows is reduced to:
 
-	•	Run as Administrator
-	•	Expect no updates
-	•	Expect no Defender protection
-	•	Expect no crash recovery
-	•	Expect logs to be useless
-	•	Treat this OS as throwaway
-	•	DO NOT USE ON IMPORTANT DATA
+- Explorer-based desktop
+- Basic GUI and file dialogs
+- Networking
+- CMD and PowerShell
+- Ability to run arbitrary executables
 
-Reboot required at the end.
+Everything else is disabled or minimized.
 
+---
 
-📊 WHAT YOU SHOULD EXPECT AFTER REBOOT
+## Major Changes Applied
 
+### System Services
 
-Idle system state
+- Windows Update and servicing disabled
+- Telemetry and diagnostics disabled
+- Windows Defender fully disabled
+- Search, indexing, prefetch, and SysMain disabled
+- Cloud, sync, consumer, and UWP services disabled
+- Unused device services disabled
 
-	•	🧠 RAM: ~1 – 2 GB
-	•	🔧 Services: ~55–65
-	•	💽 Disk writes: Near zero when idle
-	•	🧵 CPU: Flat
+### Disk and Resource Reduction
 
-What still works
+- Hibernation disabled
+- Last access time updates disabled
+- Event log sizes reduced
+- Background apps disabled
+- Visual effects minimized
 
-	•	Explorer
-	•	Desktop
-	•	File dialogs
-	•	Networking
-	•	CMD / PowerShell
-	•	Any EXE you run
+### UI and Runtime Behavior
 
-What is DISABLED
+- Widgets disabled
+- Consumer features disabled
+- Background execution restricted
+- Explorer remains functional
 
-	•	Updates
-	•	Defender
-	•	Recovery
-	•	Store
-	•	Logs
-	•	Search
-	•	Indexing
-	•	Sync
-	•	Telemetry
+---
 
+## What Will No Longer Work
 
-SOME OF THE SERVICES MAY NOT BE ALLOWED TO DISABLE DUE TO WINDOWS PROTECTION FOR RUNNING SYSTEM.
+- Windows Update
+- Microsoft Defender
+- Microsoft Store
+- Recovery and repair features
+- Telemetry and diagnostics
+- Search and indexing
+- System maintenance tasks
+- AppX and UWP apps
+- Meaningful system logs
 
-[WARNING]
-`
-#####################################
-ONLY USE ON YOUR OWN RESPONSIBILTY AND IF YOU KNOW WHAT YOU'RE DOING.
-DISABLING SOME SERVICES LIKE DEFENDER AND UPDATES CAN BE DANGEOURAS IN A WORK ENVIRONMENT.
-#####################################
-`
+If something breaks, Windows will not fix itself.
 
+---
+
+## Expected Idle System State
+
+Typical values after reboot on Windows 11 Pro:
+
+- RAM usage approximately 0.9 to 1.2 GB
+- Service count approximately 55 to 65
+- Disk writes near zero when idle
+- CPU usage flat at idle
+
+Actual results depend on hardware and drivers.
+
+---
+
+## Intended Use Cases
+
+This configuration is suitable for:
+
+- Malware analysis sandboxes
+- Reverse engineering labs
+- Game or engine test rigs
+- Continuous integration runners
+- Disposable virtual machines
+- Embedded HMI style deployments
+- Research environments
+
+It is not suitable for daily use, production systems, or machines with important data.
+
+---
+
+## Requirements
+
+- Windows 11 Pro
+- Administrator privileges
+- PowerShell 5.1 or later
+- Ability to reboot after execution
+
+---
+
+## How to Use
+
+1. Clone or download this repository
+2. Open an elevated PowerShell session
+3. Allow script execution for the session
+4. Run the script with verbose output
+5. Reboot
+
+Example:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force
+.\windows11-minimizer.ps1 -Verbose
